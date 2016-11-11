@@ -26,16 +26,27 @@ namespace ARMAPI_Test
             try {
 
                 //Get the AAD token to get authorized to make the call to the Usage API
-                string token = GetOAuthTokenFromAAD();
+                string token;
+                var tokenFilePath = "..\\..\\..\\..\\oathtoken.txt";
+                if (!File.Exists(tokenFilePath)) {
+                    token = GetOAuthTokenFromAAD();
+                    using (var writer = new StreamWriter(tokenFilePath)) {
+                        writer.WriteLine(token);
+                    }
+                } else {
+                    using (var reader = new StreamReader(tokenFilePath)) {
+                        token = reader.ReadToEnd();
+                    }
+                }
 
                 /*Setup API call to Usage API
-                 Callouts:
-                 * See the App.config file for all AppSettings key/value pairs
-                 * You can get a list of offer numbers from this URL: http://azure.microsoft.com/en-us/support/legal/offer-details/
-                 * See the Azure Usage API specification for more details on the query parameters for this API.
-                 * The Usage Service/API is currently in preview; please use 2016-05-01-preview for api-version
-                 * Please see the readme if you are having problems configuring or authenticating: https://github.com/Azure-Samples/billing-dotnet-usage-api
-             
+                    Callouts:
+                    * See the App.config file for all AppSettings key/value pairs
+                    * You can get a list of offer numbers from this URL: http://azure.microsoft.com/en-us/support/legal/offer-details/
+                    * See the Azure Usage API specification for more details on the query parameters for this API.
+                    * The Usage Service/API is currently in preview; please use 2016-05-01-preview for api-version
+                    * Please see the readme if you are having problems configuring or authenticating: https://github.com/Azure-Samples/billing-dotnet-usage-api
+
                 */
                 var startDate = ConfigurationManager.AppSettings["StartDate"];
                 var endDate = ConfigurationManager.AppSettings["EndDate"];

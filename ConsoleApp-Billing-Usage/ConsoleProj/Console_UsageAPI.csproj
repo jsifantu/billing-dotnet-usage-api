@@ -65,6 +65,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UsageAggregate.cs" />
     <Compile Include="UsagePayload.cs" />
+    <Compile Include="UsageRequest.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
