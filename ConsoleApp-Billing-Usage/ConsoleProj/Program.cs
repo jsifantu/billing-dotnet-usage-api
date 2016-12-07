@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using System.Net;
 using System.IO;
+using System.Threading;
 using System.Linq.Expressions;
 using Microsoft.Azure.Documents;
 using Microsoft.Azure.Documents.Client;
@@ -27,7 +28,7 @@ namespace ARMAPI_Test
 
                 //Get the AAD token to get authorized to make the call to the Usage API
                 string token;
-                var tokenFilePath = "..\\..\\..\\..\\oathtoken.txt";
+                var tokenFilePath = Environment.CurrentDirectory + "\\oathtoken.txt";
                 if (!File.Exists(tokenFilePath)) {
                     token = GetOAuthTokenFromAAD();
                     using (var writer = new StreamWriter(tokenFilePath)) {
@@ -54,6 +55,7 @@ namespace ARMAPI_Test
             } catch (Exception e) {
                 Console.WriteLine(String.Format("{0} \n\n{1}", e.Message, e.InnerException != null ? e.InnerException.Message : ""));
             }
+            Console.WriteLine("Press the Return key to exit.");
             Console.ReadLine();
         }
 
@@ -79,7 +81,7 @@ namespace ARMAPI_Test
             HttpWebResponse response = (HttpWebResponse)request.GetResponse();
             Console.WriteLine(String.Format("Usage service response status: {0}", response.StatusDescription));
             Stream receiveStream = response.GetResponseStream();
-            var filePath = Environment.CurrentDirectory + "..\\..\\..\\..\\BillingUsage.json";
+            var filePath = Environment.CurrentDirectory + "\\BillingUsage.json";
             // Pipes the stream to a higher level stream reader with the required encoding format. 
             using (var readStream = new StreamReader(receiveStream, Encoding.UTF8)) {
                 var usageResponse = readStream.ReadToEnd();
@@ -89,7 +91,7 @@ namespace ARMAPI_Test
                     writer.WriteLine(usageResponse);
                 }
                 Console.WriteLine("JSON output complete.");
-                filePath = Environment.CurrentDirectory + "..\\..\\..\\..\\BillingUsage.csv";
+                filePath = Environment.CurrentDirectory + "\\BillingUsage.csv";
                 Console.WriteLine("Writing to CSV file " + filePath);
                 UsagePayload payLoad = JsonConvert.DeserializeObject<UsagePayload>(usageResponse);
                 using (var writer = new StreamWriter(filePath)) {
@@ -113,15 +115,23 @@ namespace ARMAPI_Test
 
         public static string GetOAuthTokenFromAAD()
         {
+            AuthenticationResult result = null;
             var authenticationContext = new AuthenticationContext(String.Format("{0}/{1}",
                                                                     ConfigurationManager.AppSettings["ADALServiceURL"],
                                                                     ConfigurationManager.AppSettings["TenantDomain"]));
 
-            //Ask the logged in user to authenticate, so that this client app can get a token on his behalf
-            var result = authenticationContext.AcquireToken(String.Format("{0}/", ConfigurationManager.AppSettings["ARMBillingServiceURL"]),
+            var thread = new Thread(() => {
+                //Ask the logged in user to authenticate, so that this client app can get a token on his behalf
+                result = authenticationContext.AcquireToken(String.Format("{0}/", ConfigurationManager.AppSettings["ARMBillingServiceURL"]),
                                                             ConfigurationManager.AppSettings["ClientID"],
                                                             new Uri(ConfigurationManager.AppSettings["ADALRedirectURL"]),
                                                             PromptBehavior.Always);
+            });
+
+            thread.SetApartmentState(ApartmentState.STA);
+            thread.Name = "AquireTokenThread";
+            thread.Start();
+            thread.Join();
 
             if (result == null) {
                 throw new InvalidOperationException("Failed to obtain the JWT token");
@@ -129,6 +139,5 @@ namespace ARMAPI_Test
 
             return result.AccessToken;
         }
-
     }
 }
